@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>Hasil Omset Penjualan Produk dan Prediksinya</title>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #eef2f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: #ffffff;
+            padding: 35px;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 20px;
+        }
+        .header::before {
+            content: "@Damar Djati Wahyu Kemala 2026";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-10deg);
+            font-size: 3.5rem;
+            font-weight: 900;
+            color: rgba(0, 0, 0, 0.03);
+            white-space: nowrap;
+            width: 200%;
+            pointer-events: none;
+            user-select: none;
+        }
+        h2 {
+            color: #2c3e50;
+            margin: 0 0 10px 0;
+            font-size: 2rem;
+        }
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 1rem;
+            margin: 0;
+        }
+        .dashboard-content {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+            margin-top: 20px;
+        }
+        .left-panel {
+            flex: 1;
+            min-width: 320px;
+        }
+        .right-panel {
+            flex: 2;
+            background: #fafafa;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        }
+        .data-table th {
+            background-color: #1e293b;
+            color: white;
+            text-align: left;
+            padding: 12px 15px;
+            font-size: 0.95rem;
+        }
+        .data-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.9rem;
+            color: #334155;
+        }
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+        .row-prediction {
+            background-color: #f0fdf4;
+            font-weight: bold;
+        }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        .badge-actual { background-color: #dbeafe; color: #1e40af; }
+        .badge-predict { background-color: #dcfce7; color: #166534; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Analisis dan Prediksi Omset Bulanan</h2>
+            <p class="deskripsi">Integrasi Data Terkini / Aktual dan Estimasi Masa Depan berbasis Linear Regression (Machine Learning)</p>
+            <p style="font-size: 17px; color: #414141; margin: 0;">Dibuat oleh: Damar Djati Wahyu Kemala</p>
+        </div>
+        
+        <div class="dashboard-content">
+            
+            <div class="panel-kiri">
+                <table class="data-table" id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>Bulan</th>
+                            <th>Total Omset</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            
+            <div class="panel-kanan">
+                <canvas id="omsetChart" height="450" width="600px"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        async function getOmsetAPI(){
+            fetch("http://localhost:8080/omsetPenjualan").then(response => {
+                if(!response.ok){
+                    throw new Error("Gagal ambil data dari API")
+                }
+
+                return response.json();
+            }).then(resData => {
+                // Chart Js
+                console.log("Hasil data: ", resData);
+                const totalBulan = resData.labels.length;
+
+                const borderColors = [];
+                const pointColors = [];
+                const pointRadius = [];
+
+                for (let i = 0; i < totalBulan; i++) {
+                    if (resData.labels[i] === "Juni" || (totalBulan >= 6 && i === totalBulan - 1)) {
+                        // hasil prediksi
+                        borderColors.push('#16a34a');
+                        pointColors.push('#16a34a');
+                        pointRadius.push(8);
+                    } else {
+                        borderColors.push('#2563eb');
+                        pointColors.push('#2563eb');
+                        pointRadius.push(5);
+                    }
+                }
+
+                const ctx = document.getElementById('omsetChart').getContext('2d');
+                
+                let gradientLine = ctx.createLinearGradient(0, 0, ctx.canvas.width, 0);
+                gradientLine.addColorStop(0, '#2563eb');
+                gradientLine.addColorStop(0.8, '#2563eb');
+                gradientLine.addColorStop(1, '#16a34a'); // hasil prediksi
+
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: resData.labels,
+                        datasets: [{
+                            label: 'Total Omset (Rp)',
+                            data: resData.data,
+                            borderColor: gradientLine,
+                            segment: {
+                                borderColor: ctx => ctx.p1.parsed.x === totalBulan - 1 ? '#16a34a' : '#2563eb',
+                                borderWidth: ctx => ctx.p1.parsed.x === totalBulan - 1 ? 4 : 3,
+                            },
+                            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                            borderWidth: 3,
+                            tension: 0.3,
+                            pointBorderWidth: 2,
+                            pointBackgroundColor: pointColors,
+                            pointRadius: pointRadius,
+                            pointHoverRadius: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                bodyFont: { size: 14 },
+                                titleFont: { size: 14, weight: 'bold' },
+                                padding: 15,
+                                cornerRadius: 8,
+                                callbacks: {
+                                    title: function(context) {
+                                        let label = context[0].label;
+                                        if (label === "Juni") {
+                                            return `Bulan: ${label} (Prediksi Linear Regression)`;
+                                        }
+                                        return `Bulan: ${label} (Terkini / Aktual)`;
+                                    },
+                                    label: function(context) {
+                                        let value = context.parsed.y;
+                                        return ' Omset: Rp ' + value.toLocaleString('id-ID', {minimumFractionDigits: 2});
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: { display: false },
+                                ticks: {
+                                    font: { size: 13, weight: 'bold' },
+                                    color: '#333'
+                                }
+                            },
+                            y: {
+                                beginAtZero: false,
+                                grid: { color: 'rgba(0,0,0,0.05)' },
+                                ticks: {
+                                    font: { size: 12 },
+                                    callback: function(value) {
+                                        return 'Rp ' + (value/1000000).toLocaleString('id-ID') + ' Jt';
+                                    }
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Total Omset (dalam Juta Rupiah)',
+                                    font: { weight: 'bold', size: 13 }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // table
+                const tableBody = document.querySelector("#dataTable tbody");
+                tableBody.innerHTML = ""; // Bersihkan tabel
+
+                for (let i = 0; i < totalBulan; i++) {
+                    const namaBulan = resData.labels[i];
+                    const nilaiOmset = resData.data[i];
+                    
+                    const formatRupiah = 'Rp ' + nilaiOmset.toLocaleString('id-ID', { minimumFractionDigits: 2 });
+                    const isJuni = namaBulan === "Juni" || (totalBulan >= 6 && i === totalBulan - 1);
+                    
+                    const row = document.createElement("tr");
+                    if (isJuni) {
+                        row.classList.add("row-prediction");
+                        row.innerHTML = `
+                            <td>${namaBulan}</td>
+                            <td style="color: #16a34a;">${formatRupiah}</td>
+                            <td><span class="badge badge-predict">Prediksi</span></td>
+                        `;
+
+                        borderColors.push('#16a34a');
+                        pointColors.push('#16a34a');
+                        pointRadius.push(8);
+                    } else {
+                        row.innerHTML = `
+                            <td>${namaBulan}</td>
+                            <td>${formatRupiah}</td>
+                            <td><span class="badge badge-actual">Terkini / Aktual</span></td>
+                        `;
+                        
+                        borderColors.push('#2563eb');
+                        pointColors.push('#2563eb');
+                        pointRadius.push(5);
+                    }
+                    tableBody.appendChild(row);
+                }
+            }).catch((err) =>{
+                console.error("Error ERR: ", err)
+            });
+        }
+
+        getOmsetAPI();
+        
+    </script>
+</body>
+</html>
